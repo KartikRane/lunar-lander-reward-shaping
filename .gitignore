@@ -1,10 +1,13 @@
-.venv/
+﻿.venv/
 __pycache__/
 *.pyc
 
-models/
-results/
-videos/
+models/*
+!models/.gitkeep
+results/*
+!results/.gitkeep
+videos/*
+!videos/.gitkeep
 
 .vscode/
 .idea/
