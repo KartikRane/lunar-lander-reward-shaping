@@ -1,0 +1,12 @@
+.venv/
+__pycache__/
+*.pyc
+
+models/
+results/
+videos/
+
+.vscode/
+.idea/
+
+.DS_Store
