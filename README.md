@@ -4,7 +4,7 @@ Investigating reward shaping, reward hacking, and policy robustness in deep rein
 
 ## Project Status
 
-Work in progress. The random-agent check, PPO baseline training, and separate deterministic evaluation pipeline are available. All use the original Gymnasium LunarLander-v3 reward. Reward shaping is not implemented.
+Work in progress. The random-agent check, PPO baseline training, and separate deterministic evaluation pipeline are available. The baseline uses the original Gymnasium LunarLander-v3 reward. A first separate training experiment adds mild time and excess-tilt penalties; its performance has not yet been evaluated.
 
 ## Run the random agent
 
@@ -22,7 +22,7 @@ The observation contains position (x, y), velocity (x, y), angle, angular veloci
 
 To watch more episodes, change the final call in `src/random_agent.py` to `run_random_agent(episodes=3)`. Set `log_interval=0` to suppress step logs. Press Ctrl+C in the terminal to interrupt; the environment is closed in a `finally` block.
 
-`src/envs` and `src/utils` are empty package scaffolding; `src/training` and `src/evaluation` contain the PPO baseline training and evaluation scripts. `configs`, `models`, `results`, and `videos` reserve space for future work; generated artifacts are ignored by Git.
+`src/envs` contains the reward-shaping wrapper, `src/training` contains separate baseline/shaped PPO scripts, and `src/evaluation` contains baseline evaluation. `src/utils` remains empty package scaffolding. `configs`, `models`, `results`, and `videos` reserve space for future work; generated artifacts are ignored by Git.
 
 ## Train the PPO baseline
 
@@ -66,6 +66,28 @@ To watch one episode in a Lunar Lander window:
 ```
 
 The visual demo uses seed 1000 and does not overwrite the benchmark CSV. Its window closes after the episode; the main 20-episode benchmark never renders. Both modes load the model without saving or modifying it. See the [SB3 inference API](https://stable-baselines3.readthedocs.io/en/master/modules/base.html) for `load` and deterministic `predict` behavior.
+
+## First reward-shaping experiment
+
+`src/envs/reward_shaping.py` uses a [Gymnasium wrapper](https://gymnasium.farama.org/api/wrappers/) to preserve the original reward while adding two small penalties:
+
+```text
+shaped_reward = original_reward - 0.01 - 0.02 * max(0, abs(angle) - 0.2)
+```
+
+The angle is observation index 4, in radians, taken after each action. `TIME_PENALTY = 0.01` discourages lingering (1 point per 100 steps). `TILT_COEFFICIENT = 0.02` gently discourages excessive tilt, with `TILT_THRESHOLD = 0.2` radians (about 11.5 degrees) allowing small corrective tilts. For example, an angle of 1 radian adds a 0.016-point tilt penalty per step. These conservative coefficients are an initial design choice, not tuned values or a guarantee of improvement. The additional penalties apply to every step, including the final step.
+
+The wrapper leaves observations, environment dynamics, and termination/truncation flags unchanged. Each step's `info` includes `original_reward`, `time_penalty`, `tilt_penalty`, and `shaped_reward` for inspection, without printing per-step logs.
+
+Train the separate shaped policy from the repository root:
+
+```powershell
+.\.venv\Scripts\python.exe -m src.training.train_ppo_shaped
+```
+
+With the virtual environment activated, use `python -m src.training.train_ppo_shaped`. The script uses the same seed (42), 500,000-step budget, CPU execution, `MlpPolicy`, and PPO defaults as the baseline. The completed model is saved to `models/ppo_lunarlander_shaped.zip`. Repeating this command starts fresh and overwrites only that shaped-model output on completion.
+
+Training's `ep_rew_mean` now measures shaped reward and must not be compared directly with the baseline's original-reward statistics. A later comparison must evaluate both models on unwrapped LunarLander using the original reward. The existing evaluation script still targets the baseline; no shaped-policy performance conclusion is available yet.
 
 ## Planned Experiments
 
