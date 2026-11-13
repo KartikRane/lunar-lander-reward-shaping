@@ -113,6 +113,30 @@ Repeating the benchmark replaces only these comparison outputs. It leaves both t
 
 Visual mode writes no result files. Shorter episodes and higher original rewards are separate observations; episode length alone does not establish better behavior. Reward >= 200 is a threshold count, not a direct landing-success measure. This is a comparison of two single-training-seed policies on a fixed set of episodes, not evidence of general robustness or a final project conclusion.
 
+## Intentional failure experiment: repeatable stability bonus
+
+Hypothesis: rewarding stability every timestep may create an unintended incentive to remain stable without completing the landing. This experiment deliberately adds no time penalty or progress requirement, and does not change the first shaped reward.
+
+```text
+speed = sqrt(observation[2]**2 + observation[3]**2)
+stability_bonus = 1.0 if abs(observation[4]) < 0.2 and speed < 0.5 else 0.0
+hacked_reward = original_reward + stability_bonus
+```
+
+`ANGLE_THRESHOLD = 0.2` is in radians (about 11.5 degrees); `SPEED_THRESHOLD = 0.5` uses the scaled velocity values in the observation, not physical metres per second. The strict conditions are checked on the observation returned after each action. The `+1.0` bonus can be collected repeatedly, including on a final step if it qualifies. Observations, dynamics, and end flags are preserved. Per-step `info` exposes `original_reward`, `stability_bonus`, and `hacked_reward`, plus episode-level original reward and bonus counts/fraction.
+
+From the repository root:
+
+```powershell
+.\.venv\Scripts\python.exe -m src.training.train_ppo_hacked
+```
+
+With an activated virtual environment, use `python -m src.training.train_ppo_hacked`. Training starts a fresh `MlpPolicy` with the same seed (42), 500,000-step budget, CPU execution, and PPO defaults as the earlier experiments. It saves `models/ppo_lunarlander_hacked.zip`, leaving baseline/shaped models untouched.
+
+Normal SB3 output reports the modified training reward. The standard Monitor file `results/ppo_lunarlander_hacked_monitor.csv` also records each completed training episode's original reward, number of bonus-eligible steps, and bonus fraction. The CSV begins with SB3's metadata comment, followed by a header; `r` is modified episode reward and `l` is episode length. Repeating training replaces only this experiment's model and Monitor output.
+
+High modified reward or long episodes alone do not establish reward hacking. Hovering, delayed landing, inefficient trajectories, or no clear exploit are all possible outcomes. A later evaluation must measure this policy using the original unwrapped LunarLander reward and inspect behavior. No evaluation or anti-hacking correction is part of this step.
+
 ## Planned Experiments
 
 - Random-policy baseline
