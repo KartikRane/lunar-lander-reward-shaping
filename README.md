@@ -4,7 +4,7 @@ Investigating reward shaping, reward hacking, and policy robustness in deep rein
 
 ## Project Status
 
-Work in progress. The random-agent check, PPO baseline training, and separate deterministic evaluation pipeline are available. The baseline uses the original Gymnasium LunarLander-v3 reward. A first separate training experiment adds mild time and excess-tilt penalties; its performance has not yet been evaluated.
+Work in progress. The random-agent check, PPO baseline training, and separate deterministic evaluation pipeline are available. The baseline uses the original Gymnasium LunarLander-v3 reward. A first separate training experiment adds mild time and excess-tilt penalties. A controlled comparison evaluates both saved policies with the original reward on the same episode seeds.
 
 ## Run the random agent
 
@@ -22,7 +22,7 @@ The observation contains position (x, y), velocity (x, y), angle, angular veloci
 
 To watch more episodes, change the final call in `src/random_agent.py` to `run_random_agent(episodes=3)`. Set `log_interval=0` to suppress step logs. Press Ctrl+C in the terminal to interrupt; the environment is closed in a `finally` block.
 
-`src/envs` contains the reward-shaping wrapper, `src/training` contains separate baseline/shaped PPO scripts, and `src/evaluation` contains baseline evaluation. `src/utils` remains empty package scaffolding. `configs`, `models`, `results`, and `videos` reserve space for future work; generated artifacts are ignored by Git.
+`src/envs` contains the reward-shaping wrapper, `src/training` contains separate baseline/shaped PPO scripts, and `src/evaluation` contains baseline evaluation and a controlled baseline-vs-shaped comparison. `src/utils` remains empty package scaffolding. `configs`, `models`, `results`, and `videos` reserve space for future work; generated artifacts are ignored by Git.
 
 ## Train the PPO baseline
 
@@ -87,7 +87,31 @@ Train the separate shaped policy from the repository root:
 
 With the virtual environment activated, use `python -m src.training.train_ppo_shaped`. The script uses the same seed (42), 500,000-step budget, CPU execution, `MlpPolicy`, and PPO defaults as the baseline. The completed model is saved to `models/ppo_lunarlander_shaped.zip`. Repeating this command starts fresh and overwrites only that shaped-model output on completion.
 
-Training's `ep_rew_mean` now measures shaped reward and must not be compared directly with the baseline's original-reward statistics. A later comparison must evaluate both models on unwrapped LunarLander using the original reward. The existing evaluation script still targets the baseline; no shaped-policy performance conclusion is available yet.
+Training's `ep_rew_mean` now measures shaped reward and must not be compared directly with the baseline's original-reward statistics. Both policies must be compared on original-reward LunarLander. The baseline evaluator still targets only the baseline; the separate comparison below measures both saved models without retraining.
+
+## Compare baseline and shaped policies
+
+Both saved models are evaluated on fresh original-reward `LunarLander-v3` environments, with no custom reward wrapper. Gymnasium's standard time limit is retained. The benchmark uses deterministic inference on the same 20 reset seeds (1000-1019) for both policies, with no rendering or learning.
+
+From the repository root:
+
+```powershell
+.\.venv\Scripts\python.exe -m src.evaluation.compare_policies
+```
+
+This prints each episode's results, aggregate reward/episode-length statistics, and paired differences (shaped minus baseline). Reward standard deviation is the population standard deviation (`ddof=0`), matching the baseline evaluator. Results are saved to:
+
+- `results/policy_comparison.csv`: 40 rows, one per policy and episode.
+- `results/policy_comparison_summary.json`: aggregate metrics, protocol, and per-seed paired differences.
+- `results/policy_comparison.png`: per-seed original rewards and episode lengths.
+
+Repeating the benchmark replaces only these comparison outputs. It leaves both trained models and `results/baseline_evaluation.csv` unchanged. To watch the baseline followed by the shaped policy on the same selected seed:
+
+```powershell
+.\.venv\Scripts\python.exe -m src.evaluation.compare_policies --render --seed 1000
+```
+
+Visual mode writes no result files. Shorter episodes and higher original rewards are separate observations; episode length alone does not establish better behavior. Reward >= 200 is a threshold count, not a direct landing-success measure. This is a comparison of two single-training-seed policies on a fixed set of episodes, not evidence of general robustness or a final project conclusion.
 
 ## Planned Experiments
 
