@@ -137,6 +137,28 @@ Normal SB3 output reports the modified training reward. The standard Monitor fil
 
 High modified reward or long episodes alone do not establish reward hacking. Hovering, delayed landing, inefficient trajectories, or no clear exploit are all possible outcomes. A later evaluation must measure this policy using the original unwrapped LunarLander reward and inspect behavior. No evaluation or anti-hacking correction is part of this step.
 
+## Evaluate and diagnose the stability-bonus policy
+
+The three-policy benchmark evaluates baseline, shaped, and hacked policies on fresh original-reward `LunarLander-v3` environments. It reuses the existing deterministic evaluator, applies no custom reward wrapper, retains Gymnasium's standard time limit, and uses reset seeds 1000-1019 for every policy. There is no learning or model saving.
+
+All three model ZIPs and `results/ppo_lunarlander_hacked_monitor.csv` must exist before running:
+
+```powershell
+.\.venv\Scripts\python.exe -m src.evaluation.compare_all_policies
+```
+
+Outputs are `results/all_policy_comparison.csv` (60 episode rows), `results/all_policy_comparison_summary.json` (aggregates, three paired comparisons, final training diagnostics, and suggested visual seeds), and `results/all_policy_comparison.png` (original reward and episode length by seed). Population reward standard deviation (`ddof=0`) is used for every policy. Existing two-policy outputs, baseline CSV, Monitor data, and model files remain untouched. Rerunning replaces only the three new comparison outputs.
+
+The diagnostics reader skips SB3's Monitor metadata comment and summarizes the final 20 completed training episodes, or all available episodes if fewer than 20 exist. It separates modified training reward from original training reward, reports bonus frequency, and checks how closely their difference matches the number of +1 bonus steps. These training episodes are stochastic training samples, not the deterministic evaluation episodes, and high modified reward alone does not prove an exploit.
+
+Watch baseline, then shaped, then hacked on one shared seed:
+
+```powershell
+.\.venv\Scripts\python.exe -m src.evaluation.compare_all_policies --render --seed 1000
+```
+
+Visual mode writes no result files. Inspect the hacked policy for delayed completion, hovering, oscillation, crashes, normal landing, or reaching the time limit. Use original rewards, episode lengths, training diagnostics, and observed behavior together; avoid inferring behavior from a reward threshold or episode length alone. The suggested seeds supplement the full 20-seed evidence. No corrected reward or automatic reward-hacking conclusion is implemented here.
+
 ## Planned Experiments
 
 - Random-policy baseline
